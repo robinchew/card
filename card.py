@@ -35,7 +35,8 @@ class Text(object):
 
     def height_of(self,s):
         x1,y1,x2,y2 = _text2Path(s,fontName=self.font,fontSize=1).getBounds()
-        return (y2+y1/5)+0.3
+        #print x1,y1,x2,y2,'-',y2+y1
+        return y2
         
     def __str__(self):
         return self.text
@@ -45,6 +46,7 @@ class Card(object):
     height = 54*PT_PER_MM
     text_list = None
     font = 'Helvetica'
+    text_spacing = 4
     def __init__(self):
         self.ctx = Canvas('test.pdf', (86*PT_PER_MM,54*PT_PER_MM))
         self.text_list = []
@@ -54,17 +56,18 @@ class Card(object):
 
     @property
     def total_text_height(self):
-        return sum(text.height for text in self.text_list)
+        return sum(text.height for text in self.text_list) + (len(self.text_list)-1) * self.text_spacing
 
     def draw(self):
         ctx = self.ctx
         box_h = self.total_text_height
 
-        for text in self.text_list:
+        for i,text in enumerate(self.text_list):
+            extra_h = self.text_spacing if i >= 1 else 0
             ctx.setFillColor(text.colour)
             ctx.setFont(text.font,text.font_size)
-            ctx.drawString(text.x,box_h-text.height,str(text))
-            box_h -= text.height
+            ctx.drawString(text.x,box_h-text.height-extra_h,str(text))
+            box_h = box_h-text.height-extra_h
 
     def move_texts(self,x):
         for text in self.text_list:
