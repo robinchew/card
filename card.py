@@ -1,8 +1,10 @@
 from reportlab.graphics.shapes import Rect
 from reportlab.lib.colors import PCMYKColor, PCMYKColorSep
 from reportlab.pdfgen.canvas import Canvas
-from reportlab.pdfbase.pdfmetrics import getFont,stringWidth
+from reportlab.pdfbase.pdfmetrics import getFont,stringWidth,registerFont
 from reportlab.graphics.charts.textlabels import _text2Path
+
+#registerFont()
 
 PT_PER_MM = 360.0/127.0
 
@@ -11,43 +13,68 @@ blue  = PCMYKColor(91.0,  43.0,  0.0, 0.0)
 red   = PCMYKColorSep( 0.0, 100.0, 91.0, 0.0, spotName='PANTONE 485 CV',density=100)
 red2   = PCMYKColor( 0.0, 100.0, 91.0, 0.0, knockout=0) #knockout does nothing?
 
+class Text(object):
+    font = 'Helvetica'
+
+    def height_of(self,s):
+        x1,y1,x2,y2 = _text2Path(s,fontName=self.font,fontSize=1).getBounds()
+        #print 'xyxy',x1,y1,x2,y2
+        return (y2+y1/5)+0.3
+        
+    def __init__(self,text,font=None):
+        font = font if font else self.font
+        self.font = font
+        box_w = 40*PT_PER_MM
+        self.text = text
+        self.width = stringWidth(text,font, 1000)
+        self.font_size = self.scale = box_w/(self.width/1000)
+        self.height = self.height_of(text) * self.scale
+
+    def __str__(self):
+        return self.text
+
 class Card(object):
     width = 86*PT_PER_MM
     height = 54*PT_PER_MM
-    box_h = 0
+    text_list = None
     font = 'Helvetica'
     def __init__(self):
         self.ctx = Canvas('test.pdf', (86*PT_PER_MM,54*PT_PER_MM))
-        self.box_h = self.height
+        self.text_list = []
         
-    def height_of(self,s):
-        x1,y1,x2,y2 = _text2Path(s,fontName=self.font,fontSize=1).getBounds()
-        print 'xyxy',x1,y1,x2,y2
-        return (y2+y1/5)+0.3
-        
-    def draw(self,text):
-        ctx = self.ctx
-        box_w = 40*PT_PER_MM
-        text_w = stringWidth(text, self.font, 1000)
-        scale = box_w/(text_w/1000)
-        text_h = self.height_of(text) * scale
+    def text(self,text,font=None):
+        text = Text(text,font)
+        self.text_list.append(text)
 
         #print text_w,'/',text_w,'=',scale
 
-        ctx.setFillColor(black)
-        ctx.setFont(self.font, scale)
-        ctx.drawString(0,self.box_h-text_h,text)
+    def draw(self):
+        ctx = self.ctx
+        box_h = self.height
+        for text in self.text_list:
+            ctx.setFillColor(black)
+            ctx.setFont(text.font,text.font_size)
+            ctx.drawString(0,box_h-text.height,str(text))
+            box_h -= text.height
 
-        self.box_h -= text_h
+    def move(self,x,y):
+        self.ctx.translate(x,y)
 
     def save(self):
         self.ctx.save()
 
 card = Card()
-card.draw('Paul Cartwright')
-card.draw('Software Engineer')
-card.draw('paul@obsi.com.au')
-card.draw('0403 048 754')
+card.text('Paul Cartwright','Helvetica-Bold')
+card.text('Software Engineer')
+card.text('paul@obsi.com.au')
+card.text('0403 048 754')
+
+total_text_h = sum(text.height for text in card.text_list)
+
+card.move(card.width/2-20*PT_PER_MM,-(card.height/2-total_text_h/2))
+print card.width/2-20*PT_PER_MM,-(card.height/2-total_text_h/2)
+print 'th',total_text_h
+card.draw()
 card.save()
 
 """
