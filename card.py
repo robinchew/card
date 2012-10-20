@@ -18,8 +18,9 @@ registerFont(TTFont('OpenSansBold','/home/robin/.fonts/opensans/OpenSans-Bold-we
 
 PT_PER_MM = 360.0/127.0
 
+blue = PCMYKColor(70, 0, 0, 100)
 black = PCMYKColor(0, 0, 0, 100)
-grey   = PCMYKColor( 0.0, 0.0, 0.0, 70 )
+grey   = PCMYKColor( 0.0, 0.0, 0.0, 60 )
 
 # PCMYKColorSep( 0.0, 100.0, 91.0, 0.0, spotName='PANTONE 485 CV',density=100) # what is this?
 
@@ -46,7 +47,7 @@ class Text(object):
     def height_of(self,s):
         x1,y1,x2,y2 = _text2Path(s,fontName=self.font,fontSize=1).getBounds()
         #print x1,y1,x2,y2,'-',y2+y1
-        return y2
+        return y2 - 0.21 # 0.21 repesents the PT size difference between a capital and small letter 
         
     def __str__(self):
         return self.text
@@ -56,11 +57,13 @@ class Card(object):
     height = 54*PT_PER_MM
     text_list = None
     font = 'Helvetica'
-    text_spacing = 4
+    text_spacing = 6
+    contact_spacing = 9
     def __init__(self):
-        self.ctx = Canvas('test.pdf', (86*PT_PER_MM,54*PT_PER_MM))
+        self.ctx = Canvas('card.pdf', (86*PT_PER_MM,54*PT_PER_MM))
         self.text_list = []
         self.sub_text_list = []
+        self.contacts = []
         
     def text(self,text):
         self.text_list.append(text)
@@ -83,26 +86,50 @@ class Card(object):
             ctx.drawString(text.x,box_h-text.height-extra_h,str(text))
             box_h = box_h-text.height-extra_h
 
-    def draw_sub_text(self):
-        ctx = self.ctx
-        total_w = 0
+    def add_contact(self,text,pdf_filename):
+        self.contacts.append((text,pdf_filename))
 
-        for i,text in enumerate(self.sub_text_list):
+    @property
+    def total_contact_height(self):
+        return sum( text.height for contact,p in self.contacts) + (len(self.contacts)-1)*self.contact_spacing
+
+    def draw_contacts(self):
+        ctx = self.ctx
+
+        ctx.saveState()
+        for i,l in enumerate(self.contacts):
+            text = l[0]
+            pdf_filename = l[1]
+
+            spacing = self.contact_spacing if i > 0 else 0
+            ctx.translate(0,-(spacing+text.height))
+
+            ctx = self.ctx
             ctx.setFillColor(text.colour)
-            ctx.setFont(text.font,3*PT_PER_MM)
-            ctx.drawString(total_w,0,str(text))
-            total_w += text.width
+            ctx.setFont(text.font,text.font_size)
 
-    def draw_contact(self,text,pdf_filename,x=0,y=0):
-        ctx = self.ctx
-        ctx.setFillColor(text.colour)
-        ctx.setFont(text.font,3*PT_PER_MM)
-        ctx.drawString(x,y,str(text))
+            w = 17
+            if '@' in str(text):
+                # Draw character by character
+                # in order to control colours
+                ctx.setFillColor(black)
+                for c in str(text):
+                    if c == '@':
+                        ctx.setFillColor(text.colour)
+                    ctx.drawString(w,0,c)
+                    w += stringWidth(c,text.font,text.scale)
+            else:
+                ctx.drawString(w,0,str(text))
 
-        pdf = PdfReader(pdf_filename).pages[0]
-        pdf = pagexobj(pdf)
-        card.move((12-pdf.w)/2,-(pdf.h-text.height)/2)
-        card.ctx.doForm(makerl(card.ctx,pdf))
+            pdf = PdfReader(pdf_filename).pages[0]
+            pdf = pagexobj(pdf)
+
+            ctx.saveState()
+            ctx.translate((12-pdf.w)/2,-(pdf.h-text.height)/2+1)
+            ctx.doForm(makerl(ctx,pdf))
+            ctx.restoreState()
+
+        ctx.restoreState()
 
     def move_texts(self,x):
         for text in self.text_list:
@@ -119,8 +146,8 @@ class Card(object):
 ###################
 
 card = Card()
-card.text(Text('Robin Chew','OpenSansBold'))
-card.text(Text('Software Engineer',colour=grey))
+card.text(Text('Robin Chew','OpenSansBold',scale=6*PT_PER_MM))
+card.text(Text('Software Engineer',colour=grey,scale=6*PT_PER_MM))
 #card.sub_text(Text('robin@obsi.com.au',colour=grey,scale=3*PT_PER_MM))
 #card.sub_text(Text('0403 048 754',colour=grey,scale=3*PT_PER_MM))
 
@@ -143,27 +170,23 @@ logo = pagexobj(logo)
 card.ctx.doForm(makerl(card.ctx,logo))
 card.ctx.restoreState()
 
-#########
-# EMAIL #
-#########
+#################
+# EMAIL & PHONE #
+#################
 
-card.ctx.saveState()
-card.move(left_margin,35)
-text = Text('robin@obsi.com.au',colour=grey,scale=3*PT_PER_MM)
-card.draw_contact(text,'email.pdf',x=17)
+text = Text('robin@obsi.com.au',colour=grey,scale=3.5*PT_PER_MM)
+card.add_contact(text,'email.pdf')
 
-card.ctx.restoreState()
+text = Text('04 0304 8574',colour=grey,scale=3.5*PT_PER_MM)
+card.add_contact(text,'phone.pdf')
 
-#########
-# PHONE #
-#########
 
-card.ctx.saveState()
-card.move(left_margin,20)
-text = Text('040304 8574',colour=grey,scale=3*PT_PER_MM)
-card.draw_contact(text,'phone.pdf',x=17)
+#card.ctx.saveState()
+#card.move(left_margin,card.total_contact_height)
+card.ctx.translate(left_margin,((card.height-card.total_text_height)/2-card.total_contact_height)/2+card.total_contact_height)
+card.draw_contacts()
 
-card.ctx.restoreState()
+#card.ctx.restoreState()
 
 ########
 # SAVE #
