@@ -55,15 +55,22 @@ class Text(object):
 class Card(object):
     width = 86*PT_PER_MM
     height = 54*PT_PER_MM
+    bleed = 3*PT_PER_MM
     text_list = None
     font = 'Helvetica'
     text_spacing = 6
     contact_spacing = 9
     def __init__(self):
-        self.ctx = Canvas('card.pdf', (86*PT_PER_MM,54*PT_PER_MM))
+        filename = 'card(%(width)s+%(bleed)s)x(%(height)s+%(bleed)s).pdf' % {
+            'width':int(self.width/PT_PER_MM),
+            'height':int(self.height/PT_PER_MM),
+            'bleed':int(self.bleed/PT_PER_MM)*2
+        }
+        self.ctx = Canvas(filename, (self.width,self.height))
         self.text_list = []
         self.sub_text_list = []
         self.contacts = []
+        self.filename = filename
         
     def text(self,text):
         self.text_list.append(text)
@@ -141,18 +148,23 @@ class Card(object):
     def save(self):
         self.ctx.save()
 
+card = Card()
+
+#################
+# SET 3mm BLEED #
+#################
+
+card.ctx.setPageSize((card.width+card.bleed*2,card.height+card.bleed*2))
+card.ctx.translate(card.bleed,card.bleed)
+
 ###################
 # NAME / POSITION #
 ###################
 
-card = Card()
 card.text(Text('Robin Chew','OpenSansBold',scale=6*PT_PER_MM))
 card.text(Text('Software Engineer',colour=grey,scale=6*PT_PER_MM))
-#card.sub_text(Text('robin@obsi.com.au',colour=grey,scale=3*PT_PER_MM))
-#card.sub_text(Text('0403 048 754',colour=grey,scale=3*PT_PER_MM))
 
 card.ctx.saveState()
-#left_margin = card.width/2-card.text_list[0].width/2
 left_margin = 10 * PT_PER_MM 
 card.move(left_margin,card.height/2-card.total_text_height/2)
 card.draw()
@@ -163,10 +175,10 @@ card.ctx.restoreState()
 ########
 
 card.ctx.saveState()
-h = card.height/2+card.total_text_height/2
-card.move(card.width-82-10*PT_PER_MM, h+((card.height-h-22.6)/2))
 logo = PdfReader('logo.pdf').pages[0]
 logo = pagexobj(logo)
+h = card.height/2+card.total_text_height/2
+card.move(card.width-logo.w-10*PT_PER_MM, h+((card.height-h-logo.h)/2))
 card.ctx.doForm(makerl(card.ctx,logo))
 card.ctx.restoreState()
 
@@ -180,19 +192,18 @@ card.add_contact(text,'email.pdf')
 text = Text('04 0304 8574',colour=grey,scale=3.5*PT_PER_MM)
 card.add_contact(text,'phone.pdf')
 
-
-#card.ctx.saveState()
-#card.move(left_margin,card.total_contact_height)
+card.ctx.saveState()
 card.ctx.translate(left_margin,((card.height-card.total_text_height)/2-card.total_contact_height)/2+card.total_contact_height)
 card.draw_contacts()
-
-#card.ctx.restoreState()
+card.ctx.restoreState()
 
 ########
 # SAVE #
 ########
 
 card.save()
+
+print card.filename
 
 """
 c.setFillOverprint(True)
