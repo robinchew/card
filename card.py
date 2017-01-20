@@ -71,7 +71,7 @@ class Card(object):
     text_spacing = 6
     contact_spacing = 9
     def __init__(self):
-        filename = 'card(%(width)s+%(bleed)s)x(%(height)s+%(bleed)s).pdf' % {
+        filename = 'card-(%(width)s+%(bleed)s)x(%(height)s+%(bleed)s).pdf' % {
             'width':int(self.width/PT_PER_MM),
             'height':int(self.height/PT_PER_MM),
             'bleed':int(self.bleed/PT_PER_MM)*2
