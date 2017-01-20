@@ -9,12 +9,22 @@ from pdfrw import PdfReader
 from pdfrw.buildxobj import pagexobj
 from pdfrw.toreportlab import makerl
 
-from svglib import svg2rlg
+from svglib.svglib import svg2rlg
 import qrcode
 from qrcode.image.svg import SvgImage
 
-registerFont(TTFont('OpenSans','/home/robin/.fonts/opensans/OpenSans-Regular-webfont.ttf'))
-registerFont(TTFont('OpenSansBold','/home/robin/.fonts/opensans/OpenSans-Bold-webfont.ttf'))
+import os
+import sys
+
+try:
+    assert os.path.isdir(sys.argv[1]), 'Font path must be a valid directory'
+except IndexError:
+    raise Exception('First argument must be a font directory.')
+
+font_dir = sys.argv[1]
+
+registerFont(TTFont('OpenSans',os.path.join(font_dir, 'OpenSans-Regular.ttf')))
+registerFont(TTFont('OpenSansBold', os.path.join(font_dir, 'OpenSans-Bold.ttf')))
 
 PT_PER_MM = 360.0/127.0
 
